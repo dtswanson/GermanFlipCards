@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>German Flashcard Deck — Essen und Trinken</title>
+
+  <!-- Tailwind (Play CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter font (optional) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- Firebase (compat libraries so we can call firebase.auth() and firebase.firestore() like classic API) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- React + ReactDOM from CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel (transpile JSX in-browser) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html, body, #root { height: 100%; }
+    .font-inter { font-family: 'Inter', sans-serif; }
+    /* 3D flip helpers */
+    .perspective-1000 { perspective: 1000px; }
+    .transform-style-preserve-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .rotate-y-180 { transform: rotateY(180deg); }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Placeholders for runtime injection (optional) -->
+  <script>
+    // You may set these globals from GitHub Pages > repository settings > Pages > "environment variables"
+    // Or manually edit them here before publishing.
+    // Example:
+    // window.__app_id = 'my-app-id';
+    // window.__firebase_config = JSON.stringify({ apiKey: "...", authDomain: "...", projectId: "...", ... });
+    // window.__initial_auth_token = null;
+  </script>
+
+  <div id="root" class="min-h-screen"></div>
+
+  <!-- App code (transpiled by Babel) -->
+  <script type="text/babel">
+    const {
+      useState,
+      useEffect,
+      useCallback,
+      useMemo
+    } = React;
+
+    // Read globals (if provided)
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    // initialVocab (same as your list, shortened here for brevity — paste full list if you like)
+    const initialVocab = [
+      { word: "das Restaurant", definition: "Restaurant", gender: "das", plural: "-s" },
+      { word: "die Gaststätte", definition: "Inn, pub, tavern", gender: "die", plural: "-n" },
+      { word: "das Gasthaus", definition: "Guesthouse, inn", gender: "das", plural: "-häuser" },
+      { word: "die Kneipe", definition: "Bar, pub", gender: "die", plural: "-n" },
+      { word: "einen Tisch reservieren lassen", definition: "to reserve a table (have one reserved)" },
+      { word: "der Teller", definition: "Plate", gender: "der", plural: "-" },
+      { word: "das Glas", definition: "Glass", gender: "das", plural: "-Gläser" },
+      { word: "der kleine Teller", definition: "Small plate, side plate" },
+      { word: "die Tasse", definition: "Cup", gender: "die", plural: "-n" },
+      { word: "die Untertasse", definition: "Saucer", gender: "die", plural: "-n" },
+      { word: "der Teelöffel", definition: "Teaspoon", gender: "der", plural: "-" },
+      { word: "das Messer", definition: "Knife", gender: "das", plural: "-" },
+      { word: "der Löffel", definition: "Spoon", gender: "der", plural: "-" },
+      { word: "die Gabel", definition: "Fork", gender: "die", plural: "-n" },
+      { word: "die Tischdecke", definition: "Tablecloth", gender: "die", plural: "-n" },
+      { word: "die Serviette", definition: "Napkin", gender: "die", plural: "-n" },
+      { word: "das Tablett", definition: "Tray", gender: "das", plural: "-e" },
+      { word: "die Speisekarte", definition: "Menu", gender: "die", plural: "-n" },
+      { word: "das Gedeck", definition: "Place setting", gender: "das", plural: "-e" },
+      { word: "das Tagesgericht", definition: "Daily special", gender: "das", plural: "-e" },
+      { word: "wohlschmeckend/schmackhaft", definition: "Tasting good, palatable" },
+      { word: "saftig", definition: "Juicy" },
+      { word: "die Spezialität", definition: "Specialty", gender: "die", plural: "-en" },
+      { word: "bestellen", definition: "to order" },
+      { word: "die Zeche", definition: "The bill, tab (informal)", gender: "die", plural: "-n" },
+      { word: "die Rechnung", definition: "Bill, check", gender: "die", plural: "-en" },
+      { word: "Mehrwertsteuer und Bedienung einbegriffen", definition: "VAT (sales tax) and service included" },
+      { word: "das Trinkgeld", definition: "Tip, gratuity", gender: "das", plural: "-er" },
+      { word: "der Kellner", definition: "Waiter", gender: "der", plural: "-" },
+      { word: "der Ober", definition: "Head waiter (formal address)", gender: "der", plural: "-" },
+      { word: "die Kellnerin", definition: "Waitress", gender: "die", plural: "-nen" },
+      { word: "das Fräulein", definition: "Miss (dated term for waitress/young woman)", gender: "das", plural: "-" },
+      { word: "das Gericht", definition: "Dish, court of law", gender: "das", plural: "-e" },
+      { word: "die Speise", definition: "Food, dish", gender: "die", plural: "-n" },
+      { word: "die Vorspeise", definition: "Appetizer, starter", gender: "die", plural: "-n" },
+      { word: "das Hauptgericht", definition: "Main course", gender: "das", plural: "-e" },
+      { word: "der Nachtisch / die Nachspeise", definition: "Dessert (Nachtisch/Nachspeise)", gender: "der/die", plural: "-e/-n" },
+      { word: "das Dessert", definition: "Dessert", gender: "das", plural: "-s" },
+      { word: "die Beilage", definition: "Side dish (often plural: Beilagen)", gender: "die", plural: "-n" },
+      { word: "das Gemüse", definition: "Vegetables (collective noun)", gender: "das" },
+      { word: "das Getränk", definition: "Drink, beverage", gender: "das", plural: "-e" },
+      { word: "ich bin satt", definition: "I am full" },
+      { word: "ich habe genug", definition: "I have enough / I'm satisfied" },
+      { word: "das Schweinefleisch", definition: "Pork", gender: "das" },
+      { word: "das Rindfleisch", definition: "Beef", gender: "das" },
+      { word: "das Kalbfleisch", definition: "Veal", gender: "das" },
+      { word: "das Lammfleisch", definition: "Lamb (meat)", gender: "das" },
+      // ... (paste remaining entries from your original list as needed)
+    ];
+
+    // --- Flashcard ---
+    const Flashcard = ({ item, isMastered, toggleMastery }) => {
+      const [isFlipped, setIsFlipped] = useState(false);
+
+      const renderGermanWord = useCallback((vocabItem) => {
+        const parts = [];
+        if (vocabItem.gender) {
+          const genderClass = vocabItem.gender === 'der' ? 'text-blue-500' :
+                              vocabItem.gender === 'die' ? 'text-red-500' :
+                              'text-green-500';
+          parts.push(<span key="gender" className={`font-semibold ${genderClass}`}>{vocabItem.gender}</span>);
+        }
+        // show last token (word) as in original
+        const lastToken = vocabItem.word.split(' ').pop();
+        parts.push(<span key="word" className="mx-1 font-bold">{lastToken}</span>);
+        if (vocabItem.plural) {
+          parts.push(<span key="plural" className="text-gray-400">({vocabItem.plural})</span>);
+        }
+        return <>{parts}</>;
+      }, []);
+
+      const cardBaseClasses = isMastered 
+        ? 'bg-green-50 border-green-500' 
+        : 'bg-white border-gray-300 hover:shadow-xl';
+
+      return (
+        <div 
+          className={`w-full h-64 perspective-1000 cursor-pointer rounded-xl shadow-lg transition-shadow duration-300 border p-0 ${cardBaseClasses}`}
+          onClick={() => setIsFlipped(!isFlipped)}
+        >
+          <div className={`relative w-full h-full transform-style-preserve-3d transition-transform duration-700 ${isFlipped ? 'rotate-y-180' : ''}`}>
+            <div className="absolute w-full h-full backface-hidden p-6 flex flex-col justify-center items-center text-center">
+              <p className="text-4xl font-extrabold text-gray-800 break-words mb-4">
+                {renderGermanWord(item)}
+              </p>
+              <p className="text-sm text-gray-500">
+                Click to see translation
+              </p>
+            </div>
+
+            <div className="absolute w-full h-full backface-hidden transform rotate-y-180 p-6 flex flex-col justify-between items-start">
+              <div className="flex-1 w-full flex flex-col justify-center items-start">
+                <p className="text-sm font-medium text-gray-400 mb-1">
+                  {item.gender ? 'Definition:' : 'Phrase/Dish:'}
+                </p>
+                <p className="text-2xl font-semibold text-gray-700 break-words">
+                  {item.definition}
+                </p>
+              </div>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleMastery(item.word);
+                }}
+                className={`flex-shrink-0 p-3 mt-4 rounded-full text-white shadow-lg transition-all duration-200 focus:outline-none focus:ring-4 self-end ${
+                  isMastered 
+                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-300' 
+                    : 'bg-yellow-500 hover:bg-yellow-600 focus:ring-yellow-300'
+                }`}
+                title={isMastered ? 'Unmark as mastered' : 'Mark as mastered'}
+              >
+                <svg 
+                  className="w-6 h-6" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {isMastered ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  )}
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- App ---
+    const App = () => {
+      const [db, setDb] = useState(null);
+      const [auth, setAuth] = useState(null);
+      const [userId, setUserId] = useState(null);
+      const [isAuthReady, setIsAuthReady] = useState(false);
+      const [mastery, setMastery] = useState({});
+      const [search, setSearch] = useState('');
+
+      // Firebase init & auth (compat)
+      useEffect(() => {
+        if (firebaseConfig) {
+          try {
+            // initializeApp if not already
+            if (!firebase.apps.length) {
+              firebase.initializeApp(firebaseConfig);
+            }
+            const firestore = firebase.firestore();
+            const authentication = firebase.auth();
+
+            setDb(firestore);
+            setAuth(authentication);
+
+            authentication.onAuthStateChanged((user) => {
+              if (user) {
+                setUserId(user.uid);
+              } else {
+                authentication.signInAnonymously().then(({ user }) => {
+                  setUserId(user.uid);
+                }).catch(e => console.error("Anonymous sign-in failed:", e));
+              }
+              setIsAuthReady(true);
+            });
+
+            // If you have a custom token (optional), sign in with it
+            if (initialAuthToken) {
+              authentication.signInWithCustomToken(initialAuthToken)
+                .catch(e => console.error("Custom token sign-in failed:", e));
+            }
+          } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            setIsAuthReady(true); // still allow UI to render (read-only) if firebase fails
+          }
+        } else {
+          // No firebase config: still allow UI but disable saving
+          console.warn("No firebaseConfig provided — app will run in read-only mode.");
+          setIsAuthReady(true);
+        }
+      }, []);
+
+      // Firestore listener for mastery (compat)
+      useEffect(() => {
+        if (!isAuthReady || !db || !userId) return;
+
+        const userMasteryDocRef = db
+          .collection('artifacts').doc(appId)
+          .collection('users').doc(userId)
+          .collection('vocabulary_mastery').doc('status');
+
+        const unsubscribe = userMasteryDocRef.onSnapshot((docSnap) => {
+          if (docSnap.exists) {
+            setMastery(docSnap.data() || {});
+          } else {
+            userMasteryDocRef.set({}).catch(e => console.error("Failed to create initial mastery doc:", e));
+            setMastery({});
+          }
+        }, (error) => {
+          console.error("Error listening to mastery data:", error);
+        });
+
+        return () => unsubscribe();
+      }, [db, userId, isAuthReady]);
+
+      // Toggle mastery
+      const toggleMastery = useCallback(async (word) => {
+        if (!db || !userId) {
+          console.warn("DB or User not ready.");
+          // update local-only state so user sees feedback even when read-only
+          setMastery(prev => ({ ...prev, [word]: !prev[word] }));
+          return;
+        }
+
+        const newStatus = !mastery[word];
+        const userMasteryDocRef = db
+          .collection('artifacts').doc(appId)
+          .collection('users').doc(userId)
+          .collection('vocabulary_mastery').doc('status');
+
+        try {
+          await userMasteryDocRef.set({ [word]: newStatus }, { merge: true });
+        } catch (e) {
+          console.error("Error updating mastery status:", e);
+        }
+      }, [db, userId, mastery]);
+
+      const resetAllMastery = useCallback(async () => {
+        if (!db || !userId) {
+          console.warn("DB or User not ready for reset.");
+          setMastery({});
+          return;
+        }
+
+        const userMasteryDocRef = db
+          .collection('artifacts').doc(appId)
+          .collection('users').doc(userId)
+          .collection('vocabulary_mastery').doc('status');
+
+        try {
+          await userMasteryDocRef.set({}, { merge: false });
+        } catch (e) {
+          console.error("Error resetting mastery status:", e);
+        }
+      }, [db, userId]);
+
+      const filteredVocab = useMemo(() => {
+        const lowerSearch = search.toLowerCase();
+
+        let filtered = initialVocab.filter(item => {
+          const matchesSearch = item.word.toLowerCase().includes(lowerSearch) ||
+                                item.definition.toLowerCase().includes(lowerSearch);
+          return matchesSearch;
+        });
+
+        filtered.sort((a, b) => {
+          const aMastered = !!mastery[a.word];
+          const bMastered = !!mastery[b.word];
+
+          if (aMastered && !bMastered) return 1;
+          if (!aMastered && bMastered) return -1;
+
+          return a.word.localeCompare(b.word);
+        });
+
+        return filtered;
+      }, [search, mastery]);
+
+      const totalWords = initialVocab.length;
+      const masteredCount = Object.values(mastery).filter(status => status === true).length;
+
+      if (!isAuthReady) {
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <p className="text-xl text-gray-600">Loading vocabulary app...</p>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-50 font-inter p-4 sm:p-8">
+          <header className="mb-8 border-b pb-4">
+            <h1 className="text-4xl font-extrabold text-gray-900 mb-2">
+              Intermediate German for cool teachers
+              <br />
+              German Flashcard Deck
+            </h1>
+            <p className="text-lg text-gray-500">
+              Essen und Trinken (Food and Drink) - Click the cards to flip!
+            </p>
+          </header>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="p-4 bg-white shadow rounded-xl border border-blue-100">
+              <p className="text-sm font-medium text-blue-600">Mastery Progress</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {masteredCount} / {totalWords}
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                <div
+                  className="bg-blue-500 h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${(masteredCount / totalWords) * 100 || 0}%` }}
+                ></div>
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-3">
+              <input
+                type="text"
+                placeholder="Search German or English..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-blue-500 focus:border-blue-500 transition duration-150"
+              />
+              <button
+                onClick={resetAllMastery}
+                className="w-full p-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition duration-150 text-sm font-medium"
+              >
+                Reset All Mastery
+              </button>
+            </div>
+          </div>
+
+          <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredVocab.length === 0 ? (
+              <div className="col-span-full text-center p-10 bg-white rounded-xl shadow border border-gray-200">
+                <p className="text-xl text-gray-600">No words found for "{search}".</p>
+              </div>
+            ) : (
+              filteredVocab.map((item) => (
+                <Flashcard
+                  key={item.word}
+                  item={item}
+                  isMastered={!!mastery[item.word]}
+                  toggleMastery={toggleMastery}
+                />
+              ))
+            )}
+          </main>
+
+          <footer className="mt-8 pt-4 border-t text-sm text-gray-500 text-center">
+            <p>User ID: {userId || 'not-available'}</p>
+            <p>Mastery status is saved automatically using Firebase Firestore (if configured).</p>
+          </footer>
+        </div>
+      );
+    };
+
+    // Render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
